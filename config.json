@@ -1,0 +1,13 @@
+{
+  "scheduling": {
+    "auto_book": false,
+    "schedule_days": ["monday", "wednesday", "friday"],
+    "schedule_time": "09:00"
+  },
+  "notifications": {
+    "email_notifications": false,
+    "email_address": "",
+    "success_notification": true,
+    "failure_notification": true
+  }
+}
