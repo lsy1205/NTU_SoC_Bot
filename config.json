@@ -1,13 +1,5 @@
 {
-  "scheduling": {
-    "auto_book": false,
-    "schedule_days": ["monday", "wednesday", "friday"],
-    "schedule_time": "09:00"
-  },
-  "notifications": {
-    "email_notifications": false,
-    "email_address": "",
-    "success_notification": true,
-    "failure_notification": true
-  }
+    "Time": "2025-10-06 10:00:01",
+    "Event": "114年度 SoC中心徵才說明會-群聯電子", 
+    "Dietary": "葷食"
 }

@@ -4,7 +4,15 @@ This script demonstrates how to automatically log into a website using Selenium.
 """
 
 import os
+import sys
+import threading
+
 import time
+from datetime import datetime
+import schedule
+
+import json
+
 from dotenv import load_dotenv
 
 from selenium import webdriver
@@ -27,15 +35,23 @@ class Bot:
         Always runs in headless mode (no GUI).
         """
         self.driver = None
-        self.headless = headless  # 始终使用headless模式
-        self.wait_timeout = 10
+        self.headless = headless
+        self.wait_timeout = 120
         
-        # Load configuration from .env file
-        self.config = self.load_config()
+        # Load .env file
+        self.info = self.load_info()
         
-        self.url = self.config.get('URL', "https://example.com/login")
-        self.email = self.config.get('EMAIL', "your_email")  
-        self.password = self.config.get('PASSWORD', "your_password")
+        # Load config.json file
+        config = self.load_config()
+        self.event = config["Event"]
+        self.dietary = config["Dietary"]
+
+        print(f"Event: {self.event}")
+        print(f"Dietary: {self.dietary}")
+        
+        self.url = self.info.get('URL', "https://example.com/login")
+        self.email = self.info.get('EMAIL', "your_email")  
+        self.password = self.info.get('PASSWORD', "your_password")
 
         print(f"✅ URL: {self.url}")
         print(f"✅ Email: {self.email}")
@@ -43,23 +59,29 @@ class Bot:
     
     def load_config(self):
         config = {}
+        with open('config.json', 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        return config
+        
+    def load_info(self):
+        info = {}
         load_dotenv()
 
-        config = {
+        info = {
             'EMAIL': os.getenv('EMAIL'),
             'PASSWORD': os.getenv('PASSWORD'), 
             'URL': os.getenv('URL'),
         }
         
         # Check required configurations
-        if not config['EMAIL'] or not config['PASSWORD']:
+        if not info['EMAIL'] or not info['PASSWORD']:
             raise RuntimeError("❌ Missing EMAIL or PASSWORD in .env file.")
 
         else:
             print(f"Load .env successful")
             print()
         
-        return config
+        return info
     
     def setup_browser(self):
         """Set up the Chrome browser with appropriate options."""
@@ -154,10 +176,44 @@ class Bot:
             print(f"✗ Error submitting login: {e}")
             return False
     
+    def find_activity_event(self):
+        """Find the activity event element after login."""
+        try:
+            print("Looking for activity event element...")
+            card = self.wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[@class='topcolbox ng-binding' and contains(text(), '{self.event}')]")))
+            card.click()
+            print("✓ Found activity event element!")
+            return True
+        except Exception as e:
+            print(f"✗ Error finding activity event element: {e}")
+            return False
+        
+    def select_meal_preference(self):
+        """Select meal preference from dropdown."""
+        try:
+            print("Finding Registration Button")
+            
+            try:
+                register_btn = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'btn-success') and contains(text(), '我要報名現場參加')]")))
+                register_btn.click()
+            except TimeoutException:
+                print("✗ Registration button not found or not clickable.")
+                return False
+
+            print("Selecting meal preference...")
+            
+            print("✓ Meal preference selected!")
+            return True
+        except Exception as e:
+            print(f"✗ Error selecting meal preference: {e}")
+            return False
+        
     def action(self):
         print("🤖 Start login process...")
         print("=" * 50)
         
+        Check = False
+
         # Step 1: Set up browser
         if not self.setup_browser():
             return False
@@ -186,6 +242,17 @@ class Bot:
             
             print("\n🎉 LOGIN SUCCESSFUL!")
 
+            # Wait for loading overlay to disappear
+            self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, ".loader")))
+
+            # Step 6: Find the activity event element
+            if not self.find_activity_event():
+                return False
+
+            # Step 7: Select Meal Preference
+            Check = self.select_meal_preference()
+            if not Check:
+                return False
 
 
         except Exception as e:
@@ -194,7 +261,7 @@ class Bot:
         
         finally:
             self.close_browser()
-            return True
+            return Check
     
     def close_browser(self):
         """Close the browser and clean up."""
@@ -206,8 +273,8 @@ class Bot:
                 print(f"Warning: Error closing browser: {e}")
 
 
-def main():
-    """Main function to run the login bot."""
+def job():
+    """Main function to run the bot."""
     print("Start to Login")
     print("=" * 50)
     
@@ -218,15 +285,45 @@ def main():
     print()
     
     # Create and run the bot (headless mode - no GUI)
-    bot = Bot(headless=True)
+    bot = Bot(headless=False)
     
     success = bot.action()
     
     if success:
-        print("\n✅ Login successfully!\n")
+        print("\n✅ Register successfully!\n")
     else:
-        print("\n❌ Login failed. Check the error messages above.\n")
+        print("\n❌ Failed. Check the error messages above.\n")
 
+def multi_thread_run(num_bots=3):
+    def run_bot_instance():
+        bot = Bot(headless=True)
+        bot.action()
+
+    threads = []
+    for _ in range(num_bots):
+        t = threading.Thread(target=run_bot_instance)
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()
 
 if __name__ == "__main__":
-    main()
+    target_time = ""
+    with open('config.json', 'r', encoding='utf-8') as f:
+        target_time = json.load(f)["Time"]
+    print(f"Target Time from config.json: {target_time}")
+
+    while True:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if now >= target_time:
+            # Single thread
+            job()
+
+            # Multi-threaded example
+            # multi_thread_run(num_bots=3)
+
+            break
+        time.sleep(1)
+        print(now, end="\r", flush=True)
+
