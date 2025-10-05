@@ -180,6 +180,8 @@ class Bot:
         """Find the activity event element after login."""
         try:
             print("Looking for activity event element...")
+            self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, ".loader")))
+
             card = self.wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[@class='topcolbox ng-binding' and contains(text(), '{self.event}')]")))
             card.click()
             print("✓ Found activity event element!")
@@ -340,7 +342,7 @@ class Bot:
                 print(f"Warning: Error closing browser: {e}")
 
 
-def job():
+def job(headless=False):
     """Main function to run the bot."""
     print("Start to Login")
     print("=" * 50)
@@ -352,7 +354,7 @@ def job():
     print()
     
     # Create and run the bot (headless mode - no GUI)
-    bot = Bot(headless=False)
+    bot = Bot(headless=headless)
     
     success = bot.action()
     
@@ -361,9 +363,9 @@ def job():
     else:
         print("\n❌ Failed. Check the error messages above.\n")
 
-def multi_thread_run(num_bots=3):
+def multi_thread_run(num_bots=3, headless=False):
     def run_bot_instance():
-        bot = Bot(headless=False)
+        bot = Bot(headless=headless)
         bot.action()
 
     threads = []
@@ -377,18 +379,22 @@ def multi_thread_run(num_bots=3):
 
 if __name__ == "__main__":
     target_time = ""
+    num_bots = 1
     with open('config.json', 'r', encoding='utf-8') as f:
-        target_time = json.load(f)["Time"]
+        config = json.load(f)
+        target_time = config["Time"]
+        num_bots = config["NumBots"]
+        headless = config["Headless"]
     print(f"Target Time from config.json: {target_time}")
 
     while True:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if now >= target_time:
             # Single thread
-            job()
+            # job(headless=headless)
 
             # Multi-threaded example
-            # multi_thread_run(num_bots=3)
+            multi_thread_run(num_bots=num_bots, headless=headless)
 
             break
         time.sleep(1)

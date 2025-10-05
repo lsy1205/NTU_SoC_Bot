@@ -6,9 +6,6 @@ An automated Python bot for making reservations on NTU SoC websites. This bot us
 
 - 🤖 **Automated Login**: Securely logs into the reservation system
 - 📅 **Smart Scheduling**: Can be scheduled to run at specific times/days
-- 🔄 **Retry Logic**: Automatically retries failed reservation attempts
-- ⚡ **Availability Checking**: Checks slot availability before booking
-- 📊 **Logging**: Comprehensive logging for monitoring and debugging
 - ⚙️ **Configurable**: Highly customizable through configuration files
 - 🌐 **Headless Mode**: Can run without opening browser window
 
@@ -33,14 +30,9 @@ An automated Python bot for making reservations on NTU SoC websites. This bot us
 Edit the `.env` file with your credentials:
 
 ```env
-# Login credentials
-USERNAME=your_ntu_username
-PASSWORD=your_password
-
-# Bot settings
-MAX_RETRIES=3
-RETRY_DELAY=5
-HEADLESS_MODE=true
+URL="https://soc.ee.ntu.edu.tw/www/"
+EMAIL=""
+PASSWORD=""
 ```
 
 ### 2. Bot Configuration (config.json)
@@ -49,68 +41,46 @@ Customize your reservation preferences in `config.json`:
 
 ```json
 {
-  "scheduling": {
-    "auto_book": false,
-    "schedule_days": ["monday", "thursday"],
-    "schedule_time": "10:00"
-  }
+    "NumBots": 3,
+    "Headless": true,
+    "Time": "2025-10-06 10:00:00",
+    "Event": "114年度 SoC中心徵才說明會-群聯電子", 
+    "Dietary": "葷食"
 }
 ```
+* `NumBots`: The number of robots to make the reservation
+* `Headless`: `true` for no GUI, `false` for showing the window
+* `Time`: The scheduled reservation time
+* `Event`: The event name on NTU SoC Website, see the example below
+* `Dietary`: "葷食" or "素食"
 
+![Event Name Example](images/event.png)
+
+*Example picture demonstrating how to find the event name. The highlighted text -114年度 SoC中心徵才說明會-群聯電子- is the event name. Remember to change the event name before running the bot*
 ## Usage
 
-### Basic Usage
+###  Step 1. Activate conda environment
 
 ```bash
 # Activate environment
 source env.sh
-
-# Run the bot
-python Bot.py
 ```
-
-### Customizing Reservations
-
-Edit the `main()` function in `Bot.py` to specify your reservation details:
-
-```python
-reservation_details = {
-    'date': '2025-10-11',        # YYYY-MM-DD format
-    'time': '14:00',             # HH:MM format  
-    'facility': 'Study Room 1',  # Room/facility name
-    'purpose': 'Group Study'     # Purpose of booking
+### Step 2. Customize configurations
+Edit the `config.json` to specify your reservation details:
+```json
+{
+    "NumBots": 3,
+    "Headless": true,
+    "Time": "2025-10-06 10:00:00",
+    "Event": "114年度 SoC中心徵才說明會-群聯電子", 
+    "Dietary": "葷食"
 }
 ```
 
-### Scheduling (Optional)
-
-To enable automatic scheduling, uncomment the scheduling section in the `main()` function:
-
-```python
-# Schedule reservation attempts
-schedule.every().monday.at("09:00").do(schedule_reservation_job)
-schedule.every().wednesday.at("09:00").do(schedule_reservation_job)
+### Step 3. Run the bot
 ```
-
-## Customization for Different Websites
-
-The bot is designed to be adaptable. To use it with your specific booking website:
-
-1. **Update the login selectors** in the `login()` method:
-   ```python
-   username_field = self.wait.until(
-       EC.presence_of_element_located((By.NAME, "username"))  # Update selector
-   )
-   ```
-
-2. **Modify the reservation form selectors** in `make_reservation()`:
-   ```python
-   date_field = self.wait.until(
-       EC.element_to_be_clickable((By.NAME, "date"))  # Update selector
-   )
-   ```
-
-3. **Update the availability check logic** in `check_availability()` based on your site's implementation.
+python Bot.py
+```
 
 ## Project Structure
 
@@ -118,21 +88,13 @@ The bot is designed to be adaptable. To use it with your specific booking websit
 NTU_SoC_Bot/
 ├── Bot.py              # Main bot script
 ├── requirements.txt    # Python dependencies
-├── config.json        # Bot configuration
-├── .env.example       # Environment template
-├── .env               # Your credentials (created by init.sh)
-├── init.sh            # Setup script
-├── env.sh             # Environment activation script
-├── README.md          # This file
-└── reservation_bot.log # Log file (created when bot runs)
+├── config.json         # Bot configuration
+├── .env                # Your credentials (created by init.sh)
+├── init.sh             # Setup script
+├── env.sh              # Environment activation script
+└── README.md           # This file
 ```
 
-## Logging
-
-The bot creates detailed logs in `reservation_bot.log`. Log levels include:
-- INFO: General information and successful operations
-- ERROR: Failed operations and errors
-- WARNING: Potential issues
 
 ## Troubleshooting
 
@@ -159,7 +121,7 @@ The bot creates detailed logs in `reservation_bot.log`. Log levels include:
 To run in debug mode (with visible browser):
 
 ```python
-bot = ReservationBot(headless=False)
+bot = Bot(headless=False)
 ```
 
 ## Legal and Ethical Considerations
@@ -168,7 +130,6 @@ bot = ReservationBot(headless=False)
 - Only use this bot for legitimate reservations
 - Respect the website's terms of service
 - Don't overload the server with excessive requests
-- Use appropriate delays between requests
 - Ensure you have permission to automate interactions with the target website
 
 ## Contributing
@@ -177,6 +138,6 @@ Feel free to submit issues and enhancement requests!
 
 ## License
 
-This project is for educational purposes. Use responsibly and in accordance with your institution's policies.
+Use responsibly and in accordance with your institution's policies.
 
 ---

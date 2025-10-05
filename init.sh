@@ -8,9 +8,8 @@ pip install -r requirements.txt
 echo "Finish setting up the environment"
 
 echo "Creating .env file"
-echo "#!/bin/bash\n" > .env
 
-echo "URL=\"https://soc.ee.ntu.edu.tw/www/\"" >> .env
+echo "URL=\"https://soc.ee.ntu.edu.tw/www/\"" > .env
 echo "EMAIL=\"\"" >> .env
 echo "PASSWORD=\"\"" >> .env
 
