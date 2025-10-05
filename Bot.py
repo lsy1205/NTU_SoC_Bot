@@ -296,7 +296,7 @@ def job():
 
 def multi_thread_run(num_bots=3):
     def run_bot_instance():
-        bot = Bot(headless=True)
+        bot = Bot(headless=False)
         bot.action()
 
     threads = []
@@ -318,10 +318,10 @@ if __name__ == "__main__":
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if now >= target_time:
             # Single thread
-            job()
+            # job()
 
             # Multi-threaded example
-            # multi_thread_run(num_bots=3)
+            multi_thread_run(num_bots=3)
 
             break
         time.sleep(1)
