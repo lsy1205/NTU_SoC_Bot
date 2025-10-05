@@ -196,6 +196,10 @@ class Bot:
             try:
                 register_btn = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'btn-success') and contains(text(), '我要報名現場參加')]")))
                 register_btn.click()
+                self.capture_page_state(step_name="after_event_selection", save_screenshot=True, save_html=True)
+                time.sleep(10)
+                self.capture_page_state(step_name="after_registration_click", save_screenshot=True, save_html=True)
+
             except TimeoutException:
                 print("✗ Registration button not found or not clickable.")
                 return False
@@ -263,6 +267,69 @@ class Bot:
             self.close_browser()
             return Check
     
+    def get_page_html(self, filename_prefix="page_html", save_to_file=True):
+        """
+        Get the current page's HTML content.
+        
+        Args:
+            filename_prefix (str): Prefix for the HTML file name
+            save_to_file (bool): Whether to save HTML to file
+            
+        Returns:
+            str: The complete HTML source of the current page
+        """
+        try:
+            if not self.driver:
+                print("✗ Browser driver not initialized")
+                return None
+                
+            # Get the complete HTML source
+            html_content = self.driver.page_source
+            
+            if save_to_file:
+                # Create timestamp for unique filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{filename_prefix}_{timestamp}.html"
+                
+                # Save HTML to file
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                
+                print(f"✓ Page HTML saved to: {filename}")
+                print(f"✓ HTML content length: {len(html_content)} characters")
+            
+            return html_content
+            
+        except Exception as e:
+            print(f"✗ Error getting page HTML: {e}")
+            return None
+    
+    def capture_page_state(self, step_name="unknown", save_screenshot=True, save_html=True):
+        """
+        Capture the current page state (HTML + screenshot if needed).
+        
+        Args:
+            step_name (str): Name of the current step for file naming
+        """
+        try:
+            print(f"📸 Capturing page state for step: {step_name}")
+            
+            # Get HTML content
+            html_content = self.get_page_html(f"step_{step_name}", save_to_file=save_html)
+            
+            # Optionally take a screenshot
+            if not self.headless and save_screenshot:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                screenshot_filename = f"screenshot_{step_name}_{timestamp}.png"
+                self.driver.save_screenshot(screenshot_filename)
+                print(f"✓ Screenshot saved to: {screenshot_filename}")
+            
+            return html_content
+            
+        except Exception as e:
+            print(f"✗ Error capturing page state: {e}")
+            return None
+
     def close_browser(self):
         """Close the browser and clean up."""
         if self.driver:
@@ -318,10 +385,10 @@ if __name__ == "__main__":
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if now >= target_time:
             # Single thread
-            # job()
+            job()
 
             # Multi-threaded example
-            multi_thread_run(num_bots=3)
+            # multi_thread_run(num_bots=3)
 
             break
         time.sleep(1)
