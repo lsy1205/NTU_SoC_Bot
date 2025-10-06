@@ -1,6 +1,7 @@
 {
     "NumBots": 3,
     "Headless": false,
+    "WaitTimeout": 420,
     "Time": "2025-10-06 10:00:00",
     "Event": "114年度 SoC中心徵才說明會-群聯電子", 
     "Dietary": "葷食"

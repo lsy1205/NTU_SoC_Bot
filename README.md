@@ -42,7 +42,8 @@ Customize your reservation preferences in `config.json`:
 ```json
 {
     "NumBots": 3,
-    "Headless": true,
+    "Headless": false,
+    "WaitTimeout": 420,
     "Time": "2025-10-06 10:00:00",
     "Event": "114年度 SoC中心徵才說明會-群聯電子", 
     "Dietary": "葷食"
@@ -50,6 +51,7 @@ Customize your reservation preferences in `config.json`:
 ```
 * `NumBots`: The number of robots to make the reservation
 * `Headless`: `true` for no GUI, `false` for showing the window
+* `WaitTimeout`: Maximum wait time in seconds for web elements to become available. If exceeded, the operation fails and the browser closes
 * `Time`: The scheduled reservation time
 * `Event`: The event name on NTU SoC Website, see the example below
 * `Dietary`: "葷食" or "素食"
@@ -70,7 +72,8 @@ Edit the `config.json` to specify your reservation details:
 ```json
 {
     "NumBots": 3,
-    "Headless": true,
+    "Headless": false,
+    "WaitTimeout": 420,
     "Time": "2025-10-06 10:00:00",
     "Event": "114年度 SoC中心徵才說明會-群聯電子", 
     "Dietary": "葷食"

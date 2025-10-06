@@ -29,14 +29,16 @@ from webdriver_manager.chrome import ChromeDriverManager
 class Bot:
     """A simple bot that demonstrates automated login."""
     
-    def __init__(self, headless):
+    def __init__(self, headless, wait=60):
         """
         Initialize the bot.
         Always runs in headless mode (no GUI).
         """
         self.driver = None
         self.headless = headless
-        self.wait_timeout = 120
+        self.wait_timeout = wait
+
+        print(f"⏱️  Wait Timeout: {self.wait_timeout} seconds")
         
         # Load .env file
         self.info = self.load_info()
@@ -196,11 +198,28 @@ class Bot:
             print("Finding Registration Button")
             
             try:
+                self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, ".loader")))
                 register_btn = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'btn-success') and contains(text(), '我要報名現場參加')]")))
                 register_btn.click()
-                self.capture_page_state(step_name="after_event_selection", save_screenshot=True, save_html=True)
-                time.sleep(10)
-                self.capture_page_state(step_name="after_registration_click", save_screenshot=True, save_html=True)
+                self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, ".loader")))
+                
+                print("Looking for meal preference selection...")
+                meat_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), '葷食')]")))
+                vegetarian_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), '素食')]")))
+                if self.dietary == "葷食":
+                    meat_button.click()
+                    print("✓ Selected meal preference: 葷食")
+                elif self.dietary == "素食":
+                    vegetarian_button.click()
+                    print("✓ Selected meal preference: 素食")
+                else:
+                    print(f"✗ Unknown meal preference: {self.dietary}")
+                    return False
+
+                self.capture_page_state(step_name="after_meal_selection", save_screenshot=True, save_html=True)
+                # Close Pannel
+
+                return True
 
             except TimeoutException:
                 print("✗ Registration button not found or not clickable.")
@@ -342,7 +361,7 @@ class Bot:
                 print(f"Warning: Error closing browser: {e}")
 
 
-def job(headless=False):
+def job(headless=False, wait=60):
     """Main function to run the bot."""
     print("Start to Login")
     print("=" * 50)
@@ -354,7 +373,7 @@ def job(headless=False):
     print()
     
     # Create and run the bot (headless mode - no GUI)
-    bot = Bot(headless=headless)
+    bot = Bot(headless=headless, wait=wait)
     
     success = bot.action()
     
@@ -363,9 +382,9 @@ def job(headless=False):
     else:
         print("\n❌ Failed. Check the error messages above.\n")
 
-def multi_thread_run(num_bots=3, headless=False):
+def multi_thread_run(num_bots=3, headless=False, wait=60):
     def run_bot_instance():
-        bot = Bot(headless=headless)
+        bot = Bot(headless=headless, wait=wait)
         bot.action()
 
     threads = []
@@ -380,21 +399,23 @@ def multi_thread_run(num_bots=3, headless=False):
 if __name__ == "__main__":
     target_time = ""
     num_bots = 1
+    wait = 60
     with open('config.json', 'r', encoding='utf-8') as f:
         config = json.load(f)
         target_time = config["Time"]
         num_bots = config["NumBots"]
         headless = config["Headless"]
+        wait = config["WaitTimeout"]
     print(f"Target Time from config.json: {target_time}")
 
     while True:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if now >= target_time:
             # Single thread
-            # job(headless=headless)
+            # job(headless=headless, wait=wait)
 
             # Multi-threaded example
-            multi_thread_run(num_bots=num_bots, headless=headless)
+            multi_thread_run(num_bots=num_bots, headless=headless, wait=wait)
 
             break
         time.sleep(1)
