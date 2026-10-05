@@ -1,8 +1,13 @@
 {
-    "NumBots": 3,
-    "Headless": false,
+    "NumBots": 5,
+    "Headless": true,
     "WaitTimeout": 420,
-    "Time": "2025-10-06 10:00:00",
-    "Event": "114年度 SoC中心徵才說明會-群聯電子", 
-    "Dietary": "葷食"
+    "Time": "2026-10-08 10:00:00",
+    "Event": "115年度 SoC中心徵才說明會-穩懋半導體",
+    "Dietary": "葷食",
+    "Timezone": "Asia/Taipei",
+    "PrepareSeconds": 180,
+    "PollSeconds": 1,
+    "ObserveSeconds": 30,
+    "RequestTimeout": 15
 }

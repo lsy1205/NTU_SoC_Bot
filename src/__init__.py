@@ -1,0 +1,1 @@
+"""NTU SoC registration implementations."""

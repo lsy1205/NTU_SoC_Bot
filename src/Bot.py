@@ -4,6 +4,9 @@ This script demonstrates how to automatically log into a website using Selenium.
 """
 
 import os
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
 import sys
 import threading
 
@@ -49,7 +52,7 @@ class Bot:
         self.dietary = config["Dietary"]
 
         print(f"Event: {self.event}")
-        print(f"Dietary: {self.dietary}")
+        print(f"Dietary: { {'葷食': 'non-vegetarian', '素食': 'vegetarian'}.get(self.dietary, 'unknown') }")
         
         self.url = self.info.get('URL', "https://example.com/login")
         self.email = self.info.get('EMAIL', "your_email")  
@@ -61,13 +64,13 @@ class Bot:
     
     def load_config(self):
         config = {}
-        with open('config.json', 'r', encoding='utf-8') as f:
+        with open(ROOT / 'config.json', 'r', encoding='utf-8') as f:
             config = json.load(f)
         return config
         
     def load_info(self):
         info = {}
-        load_dotenv()
+        load_dotenv(ROOT / '.env')
 
         info = {
             'EMAIL': os.getenv('EMAIL'),
@@ -208,12 +211,12 @@ class Bot:
                 vegetarian_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), '素食')]")))
                 if self.dietary == "葷食":
                     meat_button.click()
-                    print("✓ Selected meal preference: 葷食")
+                    print("✓ Selected meal preference: non-vegetarian")
                 elif self.dietary == "素食":
                     vegetarian_button.click()
-                    print("✓ Selected meal preference: 素食")
+                    print("✓ Selected meal preference: vegetarian")
                 else:
-                    print(f"✗ Unknown meal preference: {self.dietary}")
+                    print("✗ Unknown meal preference. Check Dietary in config.json.")
                     return False
 
                 self.capture_page_state(step_name="after_meal_selection", save_screenshot=True, save_html=True)
@@ -400,7 +403,7 @@ if __name__ == "__main__":
     target_time = ""
     num_bots = 1
     wait = 60
-    with open('config.json', 'r', encoding='utf-8') as f:
+    with open(ROOT / 'config.json', 'r', encoding='utf-8') as f:
         config = json.load(f)
         target_time = config["Time"]
         num_bots = config["NumBots"]
@@ -420,4 +423,3 @@ if __name__ == "__main__":
             break
         time.sleep(1)
         print(now, end="\r", flush=True)
-
