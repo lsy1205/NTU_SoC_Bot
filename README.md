@@ -1,96 +1,75 @@
 # NTU SoC Registration Bot
 
-Log in to the NTU SoC event website and submit a registration when registration opens. Three methods are available: HTTP, early-login Selenium, and legacy Selenium.
+Schedule registration for an event on the [NTU SoC website](https://soc.ee.ntu.edu.tw/www/).
 
-## Minimum workflow for each event
+Follow steps 1–7 for your first run. For each later event, update `config.json` in **step 4**, then use the **single check-and-launch command in step 5**. It checks all methods and starts them together; you do not need to run each method separately. Run commands from the project root.
 
-For your first run, complete [steps 1–4](#step-1-check-prerequisites-and-open-the-project) to install the environment, enter credentials, and configure the event. Installation is only needed again when dependencies need updating.
+The default workflow uses these three methods:
 
-Once setup is complete:
+| Method | Behavior | Requirements |
+| --- | --- | --- |
+| HTTP | Logs in early and sends one registration request at opening | Python; no browser |
+| Early-login Selenium | Logs in early, then uses the website controls at opening | Python and Chrome |
+| Legacy Selenium | Starts browser login and interaction at opening; uses `NumBots` concurrent browsers | Python and Chrome; system time zone must match the event |
 
-1. Update `Time`, `Event`, and `Dietary` in `config.json` as described in [step 4](#step-4-configure-the-event).
-2. Run the checks once and start registration only if all three checks pass:
+HTTP and early-login Selenium use `src/register.py` and save structured results. Legacy Selenium uses `src/Bot.py`. The default workflow runs all three through Bash and tmux on macOS, Linux, or Windows WSL. Native Windows users can use the optional individual Python commands below.
 
-   ```bash
-   ./scripts/test_all.sh && ./scripts/run_all.sh
-   ```
+## Step 1: Prepare your computer
 
-   The checks do not submit a registration. The launcher schedules real registration for one event in a background tmux session. Start it **before the preparation time**: with the default `PrepareSeconds: 180`, start before 09:57 for a 10:00 opening. Keep the computer awake and online.
+Install Miniconda or Anaconda, then open a terminal in this project directory. Check that conda is available:
 
-3. After the runners finish, review the saved results:
-
-   ```bash
-   ./scripts/report.sh
-   ```
-
-Run these commands from the project root. You only need to launch once per event; see [step 6](#step-6-start-scheduled-registration) for progress, cancellation, and automatic session closure, and [step 7](#step-7-review-results-and-records) for interpreting the report.
-
-To use only HTTP, replace the combined check and launch command with `./scripts/run_http.sh --now && ./scripts/run_http.sh`. Individual launchers run in the foreground; keep the terminal open or run them in your own tmux session.
-
-## Understand the three methods
-
-| Method | What it does | Browser required? | Submission behavior |
-| --- | --- | --- | --- |
-| **HTTP** | Logs in and prepares the activity data before opening, then sends the registration request directly at the scheduled time | No | At most one registration request per run |
-| **Early-login Selenium** | Logs in with Chrome before opening, refreshes activity state at opening, then clicks the registration and meal controls | Yes | At most one registration request per run |
-| **Legacy Selenium** | Uses the original browser workflow: starts Chrome and logs in only when registration opens | Yes | Starts the number of browser instances specified by `NumBots` |
-
-HTTP and early-login Selenium share the **new runner**, `src/register.py`: they support early preparation, observation without submission, and structured results. Legacy Selenium uses `src/Bot.py` and keeps its original behavior.
-
-Use HTTP for direct submission, early-login Selenium for browser-based submission, or legacy Selenium when you need the original workflow. See step 6 for the implications of running methods together.
-
-## Step 1: Check prerequisites and open the project
-
-You need Linux with Bash and Miniconda or Anaconda. Both Selenium methods need Google Chrome. The launcher for all methods also needs tmux. Check your installation:
-
-```bash
+```text
 conda --version
-tmux -V
-google-chrome --version
 ```
 
-Install any missing prerequisites before continuing. HTTP alone does not need Chrome, and individual methods can run without tmux if you keep their terminal open.
+| Platform | Terminal and setup |
+| --- | --- |
+| macOS | Terminal with zsh or Bash; execute `.sh` scripts normally, but do not source Bash scripts into zsh |
+| Linux | Bash |
+| Windows with WSL | Bash inside WSL; install conda and any required Chrome/tmux inside WSL, independently of Windows |
+| Native Windows | Anaconda/Miniconda PowerShell prompt; use the Python command column in steps 5–7 |
 
-Open your local project directory. For example:
+For Selenium, install Chrome. Open `chrome://version` in Chrome to check its version and executable path, or use the appropriate terminal command:
 
-```bash
-cd ~/mydisk/NTU_SoC_Bot
-```
+| Platform | Chrome version check |
+| --- | --- |
+| macOS | `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --version` |
+| Linux / WSL | `google-chrome --version` (sometimes named `google-chrome-stable`) |
+| Windows | Open `chrome://version` in Chrome |
 
-Replace this path if you saved the project elsewhere. Unless stated otherwise, run all commands below from the project root.
+For a per-user macOS installation, replace `/Applications` with `$HOME/Applications`. A `google-chrome: command not found` error on macOS does **not** mean Chrome is missing: that is a Linux command name. The Python code starts Chrome through `webdriver.Chrome(...)`, with discovery and driver management handled by [Selenium Manager](https://www.selenium.dev/documentation/selenium_manager/). Initial driver setup may need internet access. HTTP mode never starts Chrome.
 
-## Step 2: Create the Python environment and install dependencies
+For the default workflow, also install tmux in macOS/Linux/WSL and check `tmux -V`. Native PowerShell does not run the Bash/tmux workflow.
+
+## Step 2: Install the Python environment
+
+### macOS, Linux, or WSL
 
 ```bash
 ./init.sh
+conda activate SoC
 ```
 
-The installer:
+The installer creates `SoC` with Python 3.13.7 if needed, installs `requirements.txt`, and creates `.env` if missing. It preserves existing credentials. Rerun it when you need to reinstall dependencies; it does not install Chrome or tmux or start registration.
 
-1. Finds or creates the `SoC` conda environment. A new environment uses Python 3.13.7.
-2. Installs the packages in `requirements.txt` into that environment.
-3. Creates `.env` with the website URL and empty `EMAIL` and `PASSWORD` fields if the file does not exist. **Existing credentials are preserved.**
+If activation asks for shell initialization, run `conda init zsh` or `conda init bash` for your shell, then reopen the terminal. Bash users can alternatively activate with `source scripts/env.sh`; do not source this script or `init.sh` into zsh.
 
-You can rerun the installer to reinstall the listed dependencies. It does not install Chrome or tmux, and it does not start registration.
+### Native Windows
 
-`init.sh` calls `scripts/setup.sh`. Running `./init.sh` installs the environment; `source init.sh` also activates `SoC` in the current terminal after installation.
-
-The launchers normally select the environment for you. To run Python commands directly, activate it first:
-
-```bash
-source scripts/env.sh
-python src/register.py --help
+```powershell
+conda create -n SoC python=3.13.7 -y
+conda activate SoC
+python -m pip install -r requirements.txt
+python -m pip install tzdata
 ```
 
-Interpreter selection follows this order: the `PYTHON` environment variable, an activated `SoC` environment, `conda run -n SoC`, then `python` on PATH. For a custom virtual environment:
+Skip the create command if `SoC` already exists. `tzdata` provides time-zone rules such as `Asia/Taipei`, which Windows usually does not supply to Python. Native Windows instructions have not been runtime-validated.
 
-```bash
-PYTHON=/path/to/venv/bin/python ./scripts/run_http.sh --now
-```
+For every new terminal, activate `SoC` before using direct Python commands. The shell launchers select the environment automatically.
 
 ## Step 3: Enter your credentials
 
-Open the root-level `.env` in an editor and enter your website credentials:
+Create or edit `.env` in the project root:
 
 ```dotenv
 URL="https://soc.ee.ntu.edu.tw/www/"
@@ -98,17 +77,17 @@ EMAIL="your-email"
 PASSWORD="your-password"
 ```
 
-If you already have a working `.env`, keep it. The file is ignored by Git. Do not include real credentials in public logs or issue reports.
+Keep an existing working `.env`. It is ignored by Git; do not share credentials in logs or issue reports.
 
-## Step 4: Configure the event
+## Step 4: Configure your event
 
-Edit the root-level `config.json`. These are the three settings you normally change:
+Edit `config.json` in the project root:
 
-- `Time`: the **registration opening time**, not the event start time.
-- `Event`: the complete event title, exactly as shown on the website.
-- `Dietary`: `葷食` for non-vegetarian or `素食` for vegetarian. Keep these Chinese values because the website expects them.
+- `Time`: **registration opening time**, not the event start time, in `YYYY-MM-DD HH:MM:SS` format.
+- `Event`: the complete title, exactly as shown on the website.
+- `Dietary`: `葷食` (non-vegetarian) or `素食` (vegetarian). The website requires these Chinese values.
 
-This is a historical configuration that was used successfully. **Its opening time is in the past; replace the date and event before scheduling a new registration.**
+The example below is historical. **Replace its past date and event before scheduling.**
 
 ```json
 {
@@ -132,9 +111,6 @@ For your first run, leave the other values unchanged unless you need different b
 
 | Setting | Purpose | Applies to |
 | --- | --- | --- |
-| `Time` | Registration opening time in `YYYY-MM-DD HH:MM:SS` format | All methods |
-| `Event` | Complete event title; HTTP and early-login Selenium require an exact match | All methods |
-| `Dietary` | `葷食` or `素食` | All methods |
 | `Headless` | `true` hides Chrome; `false` shows it | Both Selenium methods |
 | `NumBots` | Number of concurrent legacy browsers | **Legacy Selenium only** |
 | `WaitTimeout` | Maximum element wait in seconds | **Legacy Selenium only** |
@@ -147,110 +123,78 @@ For your first run, leave the other values unchanged unless you need different b
 
 Legacy Selenium uses the computer's local time zone. When running all methods, the system time zone must match the configured opening time. The new runner supplies defaults for its additional settings when loading an older configuration. `NumBots: 5` does not start five HTTP or early-login Selenium instances.
 
-Configuration is read at startup. Restart a waiting process after changing it. For an alternative configuration, use `./scripts/run_http.sh --config /path/to/config.json`. The all-methods launcher always reads the root-level `config.json`.
+Configuration is read at startup. Restart a waiting process after changing it. See Optional commands for an alternative configuration; the all-methods launcher always reads the root-level `config.json`.
 
-## Step 5: Check the setup without registering
+## Step 5: Check and launch with one command
 
-```bash
-./scripts/test_all.sh
-```
-
-The script checks the methods sequentially:
-
-1. **Legacy Selenium:** verifies imports, shared configuration, and initialization offline. It does not log in or open a browser.
-2. **HTTP:** logs in with your real account and queries the activity. It does not submit a registration.
-3. **Early-login Selenium:** opens Chrome, logs in, and queries the activity. It does not submit a registration.
-
-The script continues after a failed check. Expect three `PASS` results in the summary; resolve any failures before scheduling registration.
-
-- Successful login: `session_check` has `result: PASS`.
-- Activity found: `activity` contains the expected ID, title, and opening time.
-- Completed observation: usually `observed_only`. If already registered, the result may be `already_registered_before_run`.
-- A legacy `PASS` **does not validate its live browser or submission flow**.
-
-Check logs are saved under `runs/check_all_<time>_<id>/`, including per-method output and `results.txt`. HTTP and early-login Selenium also save their normal structured run records. Immediate observation with `--now` works even if the configured opening time is in the past.
-
-## Step 6: Start scheduled registration
-
-After checking the configuration and test results, run this command once:
+After setup and event configuration, run this once on macOS, Linux, or WSL:
 
 ```bash
-./scripts/run_all.sh
+./scripts/test_all.sh && ./scripts/run_all.sh
 ```
 
-It creates a tmux session named `soc-all` with three windows:
+**This is the default workflow; no separate per-method commands are needed.** `test_all.sh` checks all three methods without registering. Only if every check passes does `&&` start `run_all.sh`, which schedules **real registration** for all three in tmux. If a check fails, resolve it before retrying.
 
-| Window | Behavior |
-| --- | --- |
-| `http` | Logs in and prepares data early, then submits at opening |
-| `selenium` | Logs in early, refreshes activity state at opening, then uses the page controls |
-| `legacy` | Starts Chrome, login, and page interaction at opening; uses `NumBots` |
+Expect three `PASS` results. HTTP and early-login Selenium log in and read the activity; verify that it matches your intended event. The legacy check only validates imports, configuration, and initialization offline; **it does not validate legacy browser login or submission**. Check logs are saved in `runs/check_all_<time>_<id>/`, including `results.txt`.
 
-With `NumBots: 5`, legacy Selenium starts five browsers in addition to the two new methods.
+To check setup without scheduling registration, run only `./scripts/test_all.sh`. If those checks have already passed for the current configuration, run only `./scripts/run_all.sh` to schedule. Do not run it again after the combined command has already launched the session.
 
-Running all three does not guarantee better results. The methods share an account but operate independently without a coordination lock. They may both submit, and account sessions may interact. After one succeeds, another may only receive an already-registered response; this is not an independent comparison of their ability to obtain a place.
+For a single method or native Windows without WSL, use [Individual methods](#individual-methods) instead.
 
-Each launch handles one configured event; it does not schedule recurring runs. `run_all.sh` rejects past opening times and an existing `soc-all` session. It does not detect runners you started separately. Do not launch duplicate processes.
+## Step 6: Monitor or cancel registration
 
-### View progress and detach
+The command in step 5 already starts the scheduled runners; there is nothing else to launch.
+
+**Start before the preparation time and keep the computer awake and online.** With `PrepareSeconds: 180` and a 10:00 opening:
+
+```text
+Before 09:57  Launch the runner
+09:57        HTTP / early-login Selenium begin preparation
+09:59:50     Recheck the session
+10:00        HTTP submits; early-login Selenium refreshes and interacts
+```
+
+HTTP and early-login Selenium stop if scheduled preparation misses the opening time.
+
+The new runner displays a countdown every second in an interactive terminal and records a heartbeat every 60 seconds. Redirected output prints waiting updates every 60 seconds. Each launch handles one event, not a recurring schedule.
+
+### Running all three with tmux
+
+`run_all.sh` creates a `soc-all` session with `http`, `selenium`, and `legacy` windows. It rejects past opening times, a mismatched system time zone, and an existing `soc-all` session, but does not detect separately started runners.
+
+The methods share an account and have no coordination lock: they may submit independently, and their sessions may interact. Running all three does not guarantee better results. `NumBots: 5` creates five legacy browsers in addition to the early-login Selenium browser and HTTP process.
 
 ```bash
 tmux attach -t soc-all
 ```
 
-- List windows: press `Ctrl+b`, release, then press `w` and select a method.
-- Leave the session running: press `Ctrl+b`, release, then press `d` to detach.
-- From another tmux session: use `tmux switch-client -t soc-all`.
-- Closing your terminal does not stop the detached session. **Keep the computer awake and online.**
+- Select a window: press `Ctrl+b`, release, then `w`.
+- Detach and leave it running: press `Ctrl+b`, release, then `d`.
+- Switch from another tmux session: `tmux switch-client -t soc-all`.
+- Cancel all methods: `tmux kill-session -t soc-all`.
 
-For a 10:00 opening with a three-minute preparation lead time, start the launcher before 09:57:
+Detached sessions survive closing the terminal. Each window closes when its process exits; the session closes after the last one. No cleanup script is needed, but a stuck process is not forcibly stopped. Unsaved terminal output disappears on closure; saved run records remain. Closure alone does not mean registration succeeded.
 
-```text
-09:57:00  Start login and prepare activity data
-09:59:50  Check session validity
-10:00:00  Submit HTTP request / refresh activity for Selenium
-```
+Stopping a process does not undo an accepted registration. Check the website before restarting after an uncertain outcome.
 
-While waiting in a terminal or tmux, the new runner updates its countdown **on the same line every second**. It still saves a heartbeat to the run records every 60 seconds without printing a separate JSON heartbeat:
+## Step 7: Review the result
 
-```text
-[09:50:00] Waiting to log in | Remaining: 0d 00:07:00 | Next: 2026-10-05 09:57:00 CST
-```
+| macOS / Linux / WSL | Direct Python (all platforms) |
+| --- | --- |
+| `./scripts/report.sh` | `python src/register.py report` |
 
-The status text is shortened to fit narrow terminals without wrapping. When output is redirected to a file or pipe, it prints a normal line every 60 seconds instead of terminal control characters. Login, submission, and error events still appear on separate lines.
+Read the status and server response together: **`registered_confirmed` + `INSERT`** means this request added the registration and a later query confirmed it. With `RJ`, the account was already registered. For `unknown` or an interrupted submission, check the website before trying again.
 
-Event titles retain their original Chinese text. Meal choices appear as `non-vegetarian` or `vegetarian` in the terminal, while submitted values remain Chinese. If preparation misses the opening time, the new runner stops rather than silently submitting late.
+Legacy Selenium does not produce this report. Its success message reflects UI actions, not confirmed server acceptance.
 
-### Automatic closure and manual cancellation
+Each HTTP or early-login Selenium run saves `runs/<start-time>_<mode>/`:
 
-Each tmux window closes when its method exits. The `soc-all` session closes after its final window exits; **no separate cleanup script is needed**. Closure depends on process completion, whether registration succeeds or fails. A stuck process is not forcibly stopped.
+- `summary.json`: configuration, activity, status, response code, and timing.
+- `events.jsonl`: timestamped progress, session checks, requests, responses, and sanitized errors.
 
-Unsaved terminal output disappears when its window closes. This matters especially for legacy Selenium, which does not produce the new runner's structured report. Saved records under `runs/` remain intact.
+Records update during execution. Their directory date is the process start date, which can precede the opening by several days. A saved `waiting` status does not prove the process is still running; check the latest heartbeat and process status.
 
-To cancel all methods before they finish:
-
-```bash
-tmux kill-session -t soc-all
-```
-
-This immediately stops the processes. It does not undo a registration already accepted by the website. Check your registration status before deciding to restart.
-
-## Step 7: Review results and records
-
-```bash
-./scripts/report.sh
-```
-
-Read the outcome and server response together: `registered_confirmed` with `INSERT` means this request added the registration and readback confirmed it; with `RJ`, the account was already registered. For `unknown`, check the website before sending another request. For errors, inspect `events.jsonl`.
-
-Legacy Selenium does not produce this report. Its success message is based on UI actions, not confirmed server acceptance.
-
-Each HTTP or early-login Selenium run creates `runs/<start-time>_<mode>/`:
-
-- `summary.json`: configuration, execution mode, latest activity state, response code, outcome, submission offset, and response duration.
-- `events.jsonl`: timestamps, heartbeat, session checks, request start/end, HTTP status, server Date header, response codes, verification, and sanitized errors.
-
-The directory name uses the process start time, which may precede registration by several days. Existing historical records remain readable. Files are updated during execution, so an interrupted run still has its last recorded state. A saved `waiting` status is not proof that the process is still alive; check its PID or the timestamp of the last heartbeat.
+### Status and response reference
 
 | Status | Meaning |
 | --- | --- |
@@ -280,130 +224,77 @@ The runner performs at most three readback checks after a submission, including 
 
 The new runner does not save credentials, cookies, raw responses, profiles, or full pages. Legacy Selenium (`src/Bot.py`) can still save HTML and screenshots; those files and `runs/` are ignored by Git. Sessions are not reused across executions.
 
-## Project layout and command migration
+## Optional commands
 
-```text
-NTU_SoC_Bot/
-├── README.md               Consolidated documentation
-├── config.json             Shared configuration
-├── .env                    Local credentials; ignored by Git
-├── requirements.txt        Python dependencies
-├── init.sh                 Installer; executable or sourceable
-├── src/
-│   ├── __init__.py          Python package
-│   ├── register.py         HTTP, early-login Selenium, and reports
-│   └── Bot.py              Legacy Selenium implementation
-├── scripts/
-│   ├── setup.sh            Environment setup; preserves existing .env
-│   ├── env.sh              Activate with: source scripts/env.sh
-│   ├── run_all.sh          Schedule all methods with automatic tmux closure
-│   ├── run_http.sh         HTTP launcher
-│   ├── run_selenium.sh     Early-login Selenium launcher
-│   ├── run_legacy.sh       Legacy Selenium launcher
-│   ├── test_all.sh         Checks without registration
-│   ├── report.sh           Saved results
-│   └── run.sh              Shared launcher; normally called internally
-├── images/                 Documentation images
-└── runs/                   Historical records; ignored by Git
-```
+### Individual methods
 
-Old commands such as `./run_all.sh` and `./test_all.sh` are now `./scripts/run_all.sh` and `./scripts/test_all.sh`. Replace `source env.sh` with `source scripts/env.sh`. The root-level `init.sh` remains the installer entry point.
+Use these only if you want one method or are running native Windows without WSL. They are alternatives to step 5, not additional steps. Choose one method, run its check, then schedule it after confirming the result:
 
-Python implementations are in `src/`; there are no root-level Python entry points. Replace old Python commands with `python src/Bot.py` or `python src/register.py ...`, and use `from src import Bot, register` for imports. The original `Bot`, `job`, and `multi_thread_run` APIs in `src.Bot` remain available, as does the `early-selenium` mode name. Shell launchers change to the project directory automatically; Python implementations locate configuration and credentials relative to the project root.
-
-## Command reference
-
-Shell launchers select the Python environment automatically. Commands below use the shared `.env` and `config.json`:
-
-| Task | Command | Submits a registration? |
+| Method | Check without registering | Schedule real registration |
 | --- | --- | --- |
-| Install or reinstall dependencies | `./init.sh` | No |
-| Check all methods | `./scripts/test_all.sh` | No; the legacy check is offline only |
-| Check HTTP login and activity now | `./scripts/run_http.sh --now` | No |
-| Check early-login Selenium now | `./scripts/run_selenium.sh --now` | No |
-| Schedule all methods | `./scripts/run_all.sh` | **Yes** |
-| Schedule HTTP only | `./scripts/run_http.sh` | **Yes** |
-| Schedule early-login Selenium only | `./scripts/run_selenium.sh` | **Yes** |
-| Start legacy Selenium | `./scripts/run_legacy.sh` | **Yes** |
-| Read saved results | `./scripts/report.sh` | No |
+| HTTP | `python src/register.py http --now` | `python src/register.py http --submit` |
+| Early-login Selenium | `python src/register.py early-selenium --now` | `python src/register.py early-selenium --submit` |
+| Legacy Selenium | No standalone live observation mode | `python src/Bot.py` |
 
-## Advanced commands
+Activate `SoC` first. Successful observation normally ends with `observed_only` or `already_registered_before_run`; `session_check` should report `PASS`. `--now` also works with a past opening time.
 
-After activating the environment, you can invoke Python directly:
+On macOS/Linux/WSL, the equivalent launchers are `./scripts/run_http.sh`, `./scripts/run_selenium.sh`, and `./scripts/run_legacy.sh`. Add `--now` to either of the first two for a check without registration.
 
-```bash
-source scripts/env.sh
-python src/register.py http --submit             # Schedule real registration
-python src/register.py early-selenium --submit   # Schedule real registration
-python src/register.py http --now                # Observe immediately; no submission
-python src/register.py early-selenium --now      # Observe immediately; no submission
-python src/register.py http                      # Observe at the opening time
-python src/register.py early-selenium            # Observe at the opening time
-python src/register.py report                    # Read local results only
-python src/register.py --help
-```
+Individual methods run in the foreground: keep the terminal open, or press `Ctrl+C` to stop. Legacy Selenium can start immediately when its configured time is already past, so check its date carefully.
 
-The HTTP and early-login Selenium shell launchers default to `--submit`. Direct Python invocation without an action flag defaults to observation.
+### Other actions
 
-To send one **real registration request immediately**:
+For HTTP and early-login Selenium, the shell launchers default to `--submit`; direct Python commands without an action flag only observe at the configured opening time. `--submit`, `--now`, and `--submit-once` are mutually exclusive.
 
-```bash
-./scripts/run_http.sh --submit-once
-```
-
-This ignores the scheduled time and submits at most once after login. It can create a real registration; it is not a simulation. `--submit`, `--now`, and `--submit-once` are mutually exclusive. Immediate submission is HTTP-only. Already-registered activities are skipped, and neither a timeout nor an `OUT` response causes an automatic resubmission.
-
-## Verified behavior
-
-On 2026-10-01, HTTP and Chrome login/status checks succeeded for event 499, `115年度 SoC中心徵才說明會-瑞鼎科技`. An immediate HTTP submission before opening returned `OUT`. Initial Chrome login timeouts were resolved by waiting for the modal's `shown.bs.modal` event.
-
-On 2026-10-05 at 10:00 Asia/Taipei:
-
-| Method | Local submission offset | Response | Outcome |
-| --- | --- | --- | --- |
-| HTTP | +0.47 ms | `INSERT` after 139.95 ms | Registration confirmed by +191.98 ms |
-| Early-login Selenium | +646 ms | `RJ` | Account already registered |
-
-The HTTP request added this registration. The Selenium result validates its request path, but does not establish whether it would have obtained a place on its own.
-
-Historical evidence remains in:
-
-- `runs/20261001_221627_777029_http/` and `runs/20261001_222245_681808_early-selenium/`: successful initial observation checks.
-- `runs/20261001_224126_765288_http/`: immediate submission rejected with `OUT`.
-- `runs/20261001_224929_285086_http/`: successful scheduled HTTP registration.
-- `runs/20261001_224957_509084_early-selenium/`: scheduled Selenium `RJ` response.
-
-Earlier failed development runs are retained; their `error` status does not mean registration failed on opening day.
-
-## Website adapter details
-
-The adapter follows the [official website's public JavaScript](https://soc.ee.ntu.edu.tw/www/js/ntusoc_1_1.js), inspected on 2026-10-01:
-
-| Endpoint | Parameters / response |
+| Task | Command (activate `SoC` first) |
 | --- | --- |
-| `POST fn/login.php` | `login_email`, `login_pw`; successful login returns `PASS` |
-| `POST fn/checksession.php` | Valid session returns `PASS` |
-| `GET fn/getdata.php` | `scope=home` returns `jobs` and `socs`; pagination uses `scope=more`, `kind=job` or `soc`, `offset`, `limit` |
-| `GET fn/getdata.php` | `scope=item&type=activity&id=...` returns `item`, including availability, `ujoin`, `s_sdate`, and `special` |
-| `POST fn/actjoin.php` | Form fields `aid`, `t=non`, and `special` when a meal selection is required |
+| Observe at opening without registering | `python src/register.py http` or `python src/register.py early-selenium` |
+| Submit one real HTTP request immediately | `python src/register.py http --submit-once` |
+| Use another configuration | `python src/register.py http --now --config /path/to/config.json` |
+| Show available options | `python src/register.py --help` |
 
-For example, `special=#葷食*素食` supplies two meal options. The configured choice is checked against those options and sent as a UTF-8 encoded form value. Unsupported meal formats stop execution. Activity 137 requires an additional profile-confirmation flow and is explicitly unsupported by the new runner. Only the NTU SoC HTTPS host is supported. The inspected frontend did not show an extra CSRF token for these requests; website changes may require adapting this implementation.
+`--submit-once` is HTTP-only and ignores the scheduled time. It is **not a simulation**. Already-registered activities are skipped; a timeout or `OUT` response does not trigger a retry.
+
+Shell interpreter selection is: `PYTHON` environment variable, active `SoC`, `conda run -n SoC`, then `python` on PATH. To use a custom environment:
+
+```bash
+PYTHON=/path/to/venv/bin/python ./scripts/run_http.sh --now
+```
 
 ## Troubleshooting
 
-| Symptom | What to check |
+| Symptom | Action |
 | --- | --- |
-| `Permission denied` | Run `chmod +x init.sh scripts/*.sh`, then retry |
-| `ModuleNotFoundError` | Run `./init.sh` and confirm the intended environment; `missing_module` identifies the missing package |
-| `conda: command not found` | Install or initialize conda, then open a new terminal |
-| Chrome or driver startup failure | Check `google-chrome --version`, driver compatibility, and network access for driver downloads; set `Headless: false` to inspect the browser |
-| Invalid session or login failure | Check `.env` locally and inspect response codes; do not publish credentials |
-| `Opening time is in the past` | Update `config.json` for the next event; use `--now` if you only want an immediate observation check |
+| `Permission denied` for a shell script | Run `chmod +x init.sh scripts/*.sh` |
+| `conda: command not found` | Install or initialize conda, then reopen the terminal |
+| `ModuleNotFoundError` | Activate `SoC` and run `python -m pip install -r requirements.txt`; `missing_module` identifies the package |
+| `google-chrome: command not found` | Use your platform's Chrome check in step 1 |
+| Chrome or driver startup failure | Check Chrome installation, driver compatibility, and network access for downloads; set `Headless: false` to inspect the browser |
+| `ZoneInfoNotFoundError` | In the active environment, run `python -m pip install tzdata` |
+| Login or session failure | Check `.env` and the recorded response codes |
+| Opening time is in the past | Update `Time`; use `--now` only for immediate observation |
+| Activity not found | Verify the complete title; optionally set `EventId` (the title is still checked) |
 | `Session soc-all already exists` | Inspect it with `tmux attach -t soc-all` before starting another run |
-| No new waiting output | Check the last heartbeat and run `pgrep -af '[p]ython.*register.py'`; old records do not prove a process is still running |
-| The tmux session disappeared | All methods may have exited; run `./scripts/report.sh`. Closure alone does not mean registration succeeded |
-| Activity not found | Check the complete title; optionally set `EventId`, which is still checked against the title |
+| No new waiting output | Check the heartbeat timestamp and whether Python is still running using your system's process monitor |
+| tmux session disappeared | Review the report and logs; all processes may have exited |
 
-The legacy `Bot(headless=False)` interface remains available for browser debugging. When reporting a problem, include the relevant sanitized error and run outcome, without credentials or personal data.
+When reporting a problem, include the sanitized error and outcome without credentials or personal data.
+
+## Limits and project files
+
+Only the NTU SoC HTTPS site is supported. Activity 137 requires extra profile confirmation and is unsupported by the new runner. Unsupported meal formats also stop execution. Website changes may require adapter updates.
+
+A recorded run on 2026-10-05 returned `INSERT` for HTTP and `RJ` for early-login Selenium. This confirms those request paths worked then; it does not establish that Selenium would have secured a place independently. Historical evidence remains in local `runs/` records.
+
+| Path | Purpose |
+| --- | --- |
+| `config.json` / `.env` | Event settings / local credentials |
+| `requirements.txt` / `init.sh` | Python dependencies / installer entry point |
+| `src/register.py` | HTTP, early-login Selenium, and reports |
+| `src/Bot.py` | Legacy Selenium |
+| `scripts/` | Setup, environment activation, launchers, checks, and reports |
+| `runs/` | Local logs and results; ignored by Git |
+
+Older root-level launch commands have moved to `scripts/`, and Python entry points to `src/`. `init.sh` remains at the root. For Python imports, use `from src import Bot, register`; the legacy `Bot`, `job`, and `multi_thread_run` APIs remain available.
 
 Use the tool only for registrations you are authorized to make, follow the website's rules, and avoid excessive requests.
